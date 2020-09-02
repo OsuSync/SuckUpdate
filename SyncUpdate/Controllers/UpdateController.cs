@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SyncUpdate.Models;
 using System;
 using System.Linq;
@@ -31,7 +32,11 @@ namespace SyncUpdate.Controllers
         [HttpGet("search/{keyword}")]
         public IActionResult SearchPlugin([FromRoute] string keyword)
         {
-            return new ObjectResult(DB.SyncUpdates.Where(p => p.Author.Contains(keyword) || p.Name.Contains(keyword) || p.Description.Contains(keyword)));
+            var fullLikedKeyword = $"%{keyword}%";
+            return new ObjectResult(DB.SyncUpdates.Where(p =>
+                EF.Functions.Like(p.Author, fullLikedKeyword)
+                || EF.Functions.Like(p.Name, fullLikedKeyword)
+                || EF.Functions.Like(p.Description, fullLikedKeyword)));
         }
 
         [HttpPost("add")]
