@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using MySql.Data.MySqlClient;
+using Pomelo.EntityFrameworkCore.MySql;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -55,7 +55,7 @@ namespace SyncUpdate
         {
             services.AddDbContext<Models.MinecraftContext>(p =>
             {
-                var connStrBuilder = new MySqlConnectionStringBuilder()
+                var connStrBuilder = new MySqlConnector.MySqlConnectionStringBuilder()
                 {
                     Server = Configuration["MySqlHost"],
                     Port = uint.Parse(Configuration["MySqlPort"]),
@@ -64,7 +64,7 @@ namespace SyncUpdate
                     Database = Configuration["MySqlSchema"],
                 };
                 Logger.LogInformation($"Initialize database context to {Configuration["MySqlHost"]}");
-                p.UseMySQL(connStrBuilder.ToString());
+                p.UseMySql(ServerVersion.AutoDetect(connStrBuilder.ToString()));
             });
             services.AddControllers()
             .AddJsonOptions(opts =>
