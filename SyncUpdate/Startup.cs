@@ -64,7 +64,8 @@ namespace SyncUpdate
                     Database = Configuration["MySqlSchema"],
                 };
                 Logger.LogInformation($"Initialize database context to {Configuration["MySqlHost"]}");
-                p.UseMySql(ServerVersion.AutoDetect(connStrBuilder.ToString()));
+                var connStr = connStrBuilder.ToString();
+                p.UseMySql(connStr, ServerVersion.AutoDetect(connStr));
             });
             services.AddControllers()
             .AddJsonOptions(opts =>
