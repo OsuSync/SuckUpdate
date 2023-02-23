@@ -18,45 +18,50 @@ namespace SyncUpdate.Controllers
         }
         
         [HttpGet("plugin/{author}/{name}")]
-        public IActionResult GetPluginInfo([FromRoute] string author, [FromRoute] string name)
+        public async Task<IActionResult> GetPluginInfo([FromRoute] string author, [FromRoute] string name)
         {
-            return new ObjectResult(DB.SyncUpdates.FirstOrDefault(p => p.Name == name && p.Author == author));
+            return new ObjectResult(await DB.SyncUpdates.FirstOrDefaultAsync(p => p.Name == name && p.Author == author));
         }
 
         [HttpGet("plugin/{guid}")]
-        public IActionResult GetPluginInfo([FromRoute] string guid)
+        public async Task<IActionResult> GetPluginInfo([FromRoute] string guid)
         {
-            return new ObjectResult(DB.SyncUpdates.FirstOrDefault(p => p.GUID == guid));
+            return new ObjectResult(await DB.SyncUpdates.FirstOrDefaultAsync(p => p.GUID == guid));
         }
 
         [HttpGet("search/{keyword}")]
-        public IActionResult SearchPlugin([FromRoute] string keyword)
+        public async Task<IActionResult> SearchPlugin([FromRoute] string keyword)
         {
             var fullLikedKeyword = $"%{keyword}%";
-            return new ObjectResult(DB.SyncUpdates.Where(p =>
+            return new ObjectResult(await DB.SyncUpdates.Where(p =>
                 EF.Functions.Like(p.Author, fullLikedKeyword)
                 || EF.Functions.Like(p.Name, fullLikedKeyword)
-                || EF.Functions.Like(p.Description, fullLikedKeyword)));
+                || EF.Functions.Like(p.Description, fullLikedKeyword)).ToListAsync());
         }
 
         [HttpPost("add")]
-        public IActionResult Add([FromForm] string pwd, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string url, [FromForm] string md5, [FromForm] string fileName)
+        public async Task<IActionResult> Add([FromForm] string pwd, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string url, [FromForm] string md5, [FromForm] string fileName)
         {
             if (pwd != "ssyynnccppwwdd") return NotFound();
-            if(DB.SyncUpdates.FirstOrDefault(p=>p.Name == name && p.Author == author) != null)
+            if(await DB.SyncUpdates.FirstOrDefaultAsync(p=>p.Name == name && p.Author == author) != null)
             {
                 return BadRequest();
             }
-            DB.SyncUpdates.Add(new SyncUpdates() { Name = name, Author = author, DownloadUrl = url, LatestHash = md5, GUID = Guid.NewGuid().ToString(), Description = desc, FileName = fileName });
-            DB.SaveChangesAsync();
+            await DB.SyncUpdates.AddAsync(new SyncUpdates() {
+                Name = name, Author = author,
+                DownloadUrl = url, LatestHash = md5,
+                GUID = Guid.NewGuid().ToString(),
+                Description = desc, FileName = fileName,
+            });
+            await DB.SaveChangesAsync();
             return Ok();
         }
 
         [HttpPost("update/{guid}")]
-        public IActionResult Update([FromForm] string pwd, [FromRoute] string guid, [FromForm] string hash, [FromForm] string url, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string fileName)
+        public async Task<IActionResult> Update([FromForm] string pwd, [FromRoute] string guid, [FromForm] string hash, [FromForm] string url, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string fileName)
         {
-            if(pwd != "ssyynnccppwwdd") return NotFound();
-            if (DB.SyncUpdates.FirstOrDefault(p=>p.GUID == guid) is SyncUpdates data)
+            if (!CheckPassword("ssyynnccppwwdd")) return NotFound();
+            if (await DB.SyncUpdates.FirstOrDefaultAsync(p => p.GUID == guid) is SyncUpdates data)
             {
                 if (hash != null) data.LatestHash = hash;
                 if (url != null) data.DownloadUrl = url;
@@ -65,16 +70,17 @@ namespace SyncUpdate.Controllers
                 if (desc != null) data.Description = desc;
                 if (fileName != null) data.FileName = fileName;
                 DB.SyncUpdates.Update(data);
-                DB.SaveChangesAsync();
+                await DB.SaveChangesAsync();
                 return Ok();
             }
             return BadRequest();
         }
         
 
-        private bool CheckPassword(string pwd)
+        private bool CheckPassword(string pwd, bool allowEmpty = false)
         {
-            return pwd == "ssyynnccppwwdd";
+            return (allowEmpty || password.Length != 0)
+                && password == pwd;
 
         }
         /// <summary>
@@ -82,20 +88,27 @@ namespace SyncUpdate.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost("fetchLatest")]
-        public IActionResult UpdateSyncVersion([FromForm] string pwd)
+        public async Task<IActionResult> UpdateSyncVersion([FromForm] string pwd)
         {
-            if (CheckPassword(pwd)) return NotFound();
-            UpdateVersion();
+            if (!CheckPassword(pwd, true)) return NotFound();
+            await UpdateVersion();
             return Ok();
         }
 
         private static readonly Models.Version Ver = new Models.Version();
-        private void UpdateVersion()
-        {
-            Ver.VersionId = DB.SyncVars.Where(p => p.Id == 1).FirstOrDefault().Value;
-            Ver.VersionHash = DB.SyncVars.Where(p => p.Id == 2).FirstOrDefault().Value;
-            Ver.DownloadURL = DB.SyncVars.Where(p => p.Id == 3).FirstOrDefault().Value;
+        private static string password = string.Empty;
 
+        private async Task<string> loadVar(int id) {
+            return (await DB.SyncVars.FirstOrDefaultAsync(p => p.Id == id)).Value;
+        }
+
+        private async Task UpdateVersion()
+        {
+            Ver.VersionId = await loadVar(1);
+            Ver.VersionHash = await loadVar(2);
+            Ver.DownloadURL = await loadVar(3);
+            password = await loadVar(4);
+            System.Console.WriteLine($"assword {password} loaded");
         }
 
         /// <summary>
