@@ -42,7 +42,7 @@ namespace SyncUpdate.Controllers
         [HttpPost("add")]
         public async Task<IActionResult> Add([FromForm] string pwd, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string url, [FromForm] string md5, [FromForm] string fileName)
         {
-            if (pwd != "ssyynnccppwwdd") return NotFound();
+            if (!CheckPassword(pwd)) return NotFound();
             if(await DB.SyncUpdates.FirstOrDefaultAsync(p=>p.Name == name && p.Author == author) != null)
             {
                 return BadRequest();
@@ -60,7 +60,7 @@ namespace SyncUpdate.Controllers
         [HttpPost("update/{guid}")]
         public async Task<IActionResult> Update([FromForm] string pwd, [FromRoute] string guid, [FromForm] string hash, [FromForm] string url, [FromForm] string name, [FromForm] string author, [FromForm] string desc, [FromForm] string fileName)
         {
-            if (!CheckPassword("ssyynnccppwwdd")) return NotFound();
+            if (!CheckPassword("pwd")) return NotFound();
             if (await DB.SyncUpdates.FirstOrDefaultAsync(p => p.GUID == guid) is SyncUpdates data)
             {
                 if (hash != null) data.LatestHash = hash;
