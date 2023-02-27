@@ -79,7 +79,7 @@ namespace SyncUpdate.Controllers
 
         private bool CheckPassword(string pwd, bool allowEmpty = false)
         {
-            return allowEmpty || (password.Length != 0 && password == pwd);
+            return (allowEmpty && password == string.Empty) || (password.Length != 0 && password == pwd);
 
         }
         /// <summary>
